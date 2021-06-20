@@ -20,7 +20,6 @@ class face_person_mobilenet:
         # print(os.getcwd())
 
         self.device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-        print("Model is running on {}".format(self.device))
 
         mobilenet = torchvision.models.mobilenet_v3_small(pretrained=True)
 
@@ -41,6 +40,8 @@ class face_person_mobilenet:
         print('Finished loading model state.')
 
         self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
 
         self.model.eval()
         
@@ -71,11 +72,12 @@ class coco_mobilenet:
     def __init__(self):
 
         self.device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-        print("Model is running on {}".format(self.device))
 
         self.model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
 
         self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
 
         self.model.eval()
 
@@ -276,11 +278,12 @@ class coco_segmentation_mobilenet:
     def __init__(self):
 
         self.device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-        print("Model is running on {}".format(self.device))
 
         self.model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
 
         self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
 
         self.model.eval()
 

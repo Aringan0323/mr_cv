@@ -12,28 +12,33 @@ import torch
 import cv2
 import time
 
+class ImgBridge:
 
-def imgmsg_to_np(img_msg):
-    # Since CvBride is shitty, here is a way to directly convert a compressed image
-    # message to a numpy array.
+    def __init__(self, format='jpg'):
+        # Since CvBridge is shitty, this class is able to directly convert between 
+        # numpy.ndarray objects and ROS CompressedImage messages.
 
-    img = np.fromstring(img_msg.data, np.uint8)
-    img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+        self.format = format
 
-    return img
+    
+    def imgmsg_to_np(self, img_msg):
+        
+
+        img = np.fromstring(img_msg.data, np.uint8)
+        img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+
+        return img
 
 
-def np_to_imgmsg(img):
-    # Again, since CvBride is shitty, here is a way to directly convert a numpy array
-    # to a compressed image message.
+    def np_to_imgmsg(self, img):
 
-    imgmsg = CompressedImage()
-    imgmsg.header.stamp = rospy.Time.now()
-    imgmsg.format = "jpg"
-    _, img_enc = cv2.imencode('.jpg', img)
-    imgmsg.data = np.array(img_enc).tostring()
+        imgmsg = CompressedImage()
+        imgmsg.header.stamp = rospy.Time.now()
+        imgmsg.format = self.format
+        _, img_enc = cv2.imencode('.'+self.format, img)
+        imgmsg.data = np.array(img_enc).tostring()
 
-    return imgmsg
+        return imgmsg
 
 
 
@@ -44,22 +49,24 @@ class OutputCVBridge:
         # convert torch tensors to OutputCV32 messages in the torch_to_outputcv()
         # function. Can be changed to 64 which will do the same but for OutputCV64
         # message types instead.
+        self.bit = bit
         
-        if bit == 32:
-            self.outmsg = OutputCV32()
-        elif bit == 64:
-            self.outmsg = OutputCV64()
-        else:
-            print('{} bit message types not supported'.format(bit))
-            return
 
 
     def torch_to_outputcv(self, output):
         # Takes in as input the detection output from either a box-detection or a 
         # segmentation pytorch model and converts it into an OutputCV ROS message.
 
+        if self.bit == 32:
+            outmsg = OutputCV32()
+        elif self.bit == 64:
+            outmsg = OutputCV64()
+        else:
+            print('{} bit message types not supported'.format(bit))
+            return
+
         if isinstance(output, dict):
-            self.outmsg.type = 'detection'
+            outmsg.type = 'detection'
 
             if output['boxes'].is_cuda:
                 boxes = output['boxes'].view(-1).cpu().tolist()
@@ -70,28 +77,28 @@ class OutputCVBridge:
                 scores = output['scores'].view(-1).tolist()
                 labels = output['labels'].view(-1).tolist()
 
-            self.outmsg.boxes_shape = list(output['boxes'].shape)
-            self.outmsg.scores_shape = list(output['scores'].shape)
-            self.outmsg.labels_shape = list(output['labels'].shape)
+            outmsg.boxes_shape = list(output['boxes'].shape)
+            outmsg.scores_shape = list(output['scores'].shape)
+            outmsg.labels_shape = list(output['labels'].shape)
 
-            self.outmsg.boxes = boxes
-            self.outmsg.scores = scores
-            self.outmsg.labels = [int(label) for label in labels]
+            outmsg.boxes = boxes
+            outmsg.scores = scores
+            outmsg.labels = [int(label) for label in labels]
 
         else:
 
-            self.outmsg.type = 'segmentation'
+            outmsg.type = 'segmentation'
 
             if output.is_cuda:
                 mask = output.view(-1).cpu().tolist()
             else:
                 mask = output.view(-1).tolist()
 
-            self.outmsg.mask_shape = list(output.shape)
+            outmsg.mask_shape = list(output.shape)
 
-            self.outmsg.mask = mask
+            outmsg.mask = mask
 
-        return self.outmsg
+        return outmsg
 
 
     def outputcv_to_torch(self, new_outmsg):
@@ -131,17 +138,18 @@ class test_pub:
             print('{} bit message types not supported'.format(bit))
             return
 
+        
+        
         self.bridge = OutputCVBridge()
         self.pub = rospy.Publisher('/pub', msg_type, queue_size=1)
-        self.test_ten = {}
+        
 
-    def publish(self):
-
-        self.test_ten['boxes'] = torch.rand((5,4,3), dtype=torch.float32).cuda()
-        self.test_ten['scores'] = torch.rand((5,4,3,90,2000), dtype=torch.float32).cuda()
-        self.test_ten['labels'] = torch.Tensor(list(range(5000))).cuda()
-        self.test_ten['boxes'][0,0,0] = rospy.get_time()
-        outmsg = self.bridge.torch_to_outputcv(self.test_ten)
+    def publish(self, now):
+        test_ten = {}
+        test_ten['boxes'] = torch.rand((1)).cuda()
+        test_ten['scores'] = torch.rand((1)).cuda()
+        test_ten['labels'] = torch.ones((1)).cuda() * now
+        outmsg = self.bridge.torch_to_outputcv(test_ten)
         self.pub.publish(outmsg)
 
 
@@ -164,35 +172,39 @@ class test_sub:
     def cb(self, outmsg):
 
         tensor = self.bridge.outputcv_to_torch(outmsg)
-        if isinstance(tensor, dict):
-            end = rospy.get_time()
-            print(tensor['boxes'].shape)
-            print(tensor['scores'].shape)
-            print('Time from send to receive: {} seconds'.format(end - tensor['boxes'][0,0,0]))
-        else:
-            print(tensor.shape)
+        print(float(tensor['labels']))
+        # if isinstance(tensor, dict):
+        #     end = time.time()
+        #     delta = end - float(tensor['boxes'][0,0,0])
+        #     print(end)
+        #     print(float(tensor['boxes'][0,0,0]))
+        #     print(delta)
+        #     print('\n\n')
+        # else:
+        #     print(tensor.shape)
 
 if __name__ == '__main__':
 
-    # rospy.init_node('bridge_test_pub')
+    rospy.init_node('bridge_test_pub')
 
-    # pub = test_pub()
+    pub = test_pub()
 
-    # while not rospy.is_shutdown():
-    #     pub.publish()
+    while not rospy.is_shutdown():
+        pub.publish(time.time())
 
 
-    bridge = OutputCVBridge(bit=64)
-    test_detect = {}
-    test_detect['boxes'] = torch.rand((5,4,3), dtype=torch.float64).cuda()
-    test_detect['scores'] = torch.rand((5,4,3,90,2000), dtype=torch.float64).cuda()
-    test_detect['labels'] = torch.Tensor([list(range(10)), list(range(10))]).cuda()
-    start = time.time()
-    outmsg = bridge.torch_to_outputcv(test_detect)
-    reconstructed_tensor = bridge.outputcv_to_torch(outmsg)
-    end = time.time()
-    # print(outmsg)
-    print('Time to convert both ways: {} seconds'.format(end-start))
+    # bridge = OutputCVBridge(bit=64)
+    # test_detect = {}
+    # test_detect['boxes'] = torch.rand((1,400,4), dtype=torch.float64).cuda()
+    # test_detect['scores'] = torch.rand((1,400), dtype=torch.float64).cuda()
+    # test_detect['labels'] = torch.Tensor((1,400)).cuda()
+
+    # start = time.time()
+    # outmsg = bridge.torch_to_outputcv(test_detect['boxes'])
+    # reconstructed_tensor = bridge.outputcv_to_torch(outmsg)
+    # end = time.time()
+    # # print(outmsg)
+    # print('Time to convert both ways: {} seconds'.format(end-start))
 
 
 
