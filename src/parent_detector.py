@@ -14,28 +14,35 @@ import rospkg
 
 from utils.bridge import ImgBridge, OutputCVBridge
 from models.segmentor_models import COCO_Segmentor
+from models.detector_models import COCO_Detector, PersonFace_Detector
 
 
-class Detection_Publisher:
+class CV_Publisher:
     # This is an abstract detector class
     # Each detector class will inherit some general methods from this class
     
 
-    def __init__(self, use_topics=True, publish_img=True):
+    def __init__(self, model_keyword, use_topics=True):
+
+        model_dict = {'coco_segmentor':COCO_Segmentor, 'coco_detector':COCO_Detector, 'personface_detector':PersonFace_Detector}
 
         # Must define the model in the class
 
         self.use_topics = use_topics
 
-        self.model = COCO_Segmentor()
+        self.model = model_dict[model_keyword]()
 
         self.img_bridge = ImgBridge()
 
-        self.output_bridge = OutputCVBridge()
+        if self.use_topics:
 
-        self.img_pub = rospy.Publisher('/output_img/compressed', CompressedImage, queue_size=10)
+            self.output_bridge = OutputCVBridge()
 
-        self.output_pub = rospy.Publisher('/output', OutputCV32, queue_size=1)
+            self.img_pub = rospy.Publisher('/output_img/compressed', CompressedImage, queue_size=10)
+
+            self.output_pub = rospy.Publisher('/output', OutputCV32, queue_size=1)
+
+        self.img = None
 
         self.img_sub = rospy.Subscriber('/raspicam_node/image/compressed', CompressedImage, self.img_cb)
 
@@ -47,84 +54,63 @@ class Detection_Publisher:
         # then performs a detection on it, converts it back into a compressed
         # image message and publishes it.
 
-        sys.stdout.write("\033[F") #back to previous line.
-        sys.stdout.write("\033[K") #clear line.
-
-        img = self.img_bridge.imgmsg_to_np(img_msg)
-
-        img_detected = self.detect(img)
-        
-        imgmsg_detected = self.img_bridge.np_to_imgmsg(img_detected)
+        self.img = self.img_bridge.imgmsg_to_np(img_msg)
 
         if self.use_topics:
 
+            output = self.detect()
+            self.visualize_output(output)
+
+            outmsg = self.output_bridge.torch_to_outputcv(output)
+            self.output_pub.publish(outmsg)
+
+            imgmsg_detected = self.img_bridge.np_to_imgmsg(self.img)
             self.img_pub.publish(imgmsg_detected)
 
-        now = time()
+            rospy.sleep(0.01)
 
-        fps = 1/(now-self.start)
+            sys.stdout.write("\033[F") #back to previous line.
+            sys.stdout.write("\033[K") #clear line.
 
-        self.start = now
+            now = time()
 
-        rospy.sleep(0.001)
+            fps = 1/(now-self.start)
 
-        print('{} FPS'.format(round(fps, 2)))
+            self.start = now
 
-
-
-    def max_scoring_preds(self, boxes, labels, scores, labels_lst, score_threshold=0):
-
-        max_boxes = {}
-
-        for label in labels_lst:
-
-            inds = np.where(labels == label)[0]
-            label_boxes = boxes[inds]
-            label_scores = scores[inds]
-            max_box = []
-
-            if inds.size > 0:
-                max_ind = np.argmax(label_scores)
-                if label_scores[max_ind] > score_threshold:
-                    max_box = label_boxes[max_ind]
-
-            max_boxes[label] = max_box
-
-        return max_boxes
+            print('{} FPS'.format(round(fps, 2)))
 
 
-    def draw_box(self, img, box, color, label=''):
+    def draw_box(self, box, label=''):
 
         cv2.rectangle(
-                        img,
+                        self.img,
                         (int(box[0]), int(box[1])),
                         (int(box[2]), int(box[3])), 
-                        color, 4
+                        (0,255,0), 4
                     )
 
         if label != '':
-            self.label_box(img, box, label, color)
+            self.label_box(box, label)
 
     
-    def label_box(self, img, box, label, color):
+    def label_box(self, box, label):
 
-        
-  
         org = (int(box[0]+10), int(box[1]+40))
 
         font = cv2.FONT_HERSHEY_SIMPLEX
         fontScale = 1
         thickness = 2
 
-        cv2.rectangle(img, (int(box[0]), int(box[1])), (int(box[0]+(20*len(label))), int(box[1]+50)),  (0,0,0), -1)
+        cv2.rectangle(self.img, (int(box[0]), int(box[1])), (int(box[0]+(20*len(label))), int(box[1]+50)),  (0,0,0), -1)
 
-        image = cv2.putText(img, label, org, font, 
-                        fontScale, color, thickness, cv2.LINE_AA)
+        image = cv2.putText(self.img, label, org, font, 
+                        fontScale, (255,255,255), thickness, cv2.LINE_AA)
 
 
-    def decode_segmap(self, image, orig_image, nc=21):
+    def decode_segmap(self, output, nc=21):
         # Source for this code: https://learnopencv.com/pytorch-for-beginners-semantic-segmentation-using-torchvision/
-
+        output = output.cpu().numpy()
         label_colors = np.array([  # 0=background
                 (0,0,0),
                # 1=aeroplane, 2=bicycle, 3=bird, 4=boat, 5=bottle
@@ -135,32 +121,48 @@ class Detection_Publisher:
                (192, 128, 0), (64, 0, 128), (192, 0, 128), (64, 128, 128), (192, 128, 128),
                # 16=potted plant, 17=sheep, 18=sofa, 19=train, 20=tv/monitor
                (0, 64, 0), (128, 64, 0), (0, 192, 0), (128, 192, 0), (0, 64, 128)])
-        r = np.zeros_like(image).astype(np.uint8)
-        g = np.zeros_like(image).astype(np.uint8)
-        b = np.zeros_like(image).astype(np.uint8)
+        r = np.zeros_like(output).astype(np.uint8)
+        g = np.zeros_like(output).astype(np.uint8)
+        b = np.zeros_like(output).astype(np.uint8)
         for l in range(0, nc):
-            idx = image == l
+            idx = output == l
             r[idx] = label_colors[l, 2]
             g[idx] = label_colors[l, 1]
             b[idx] = label_colors[l, 0]
         bgr = np.stack([b, g, r], axis=2)
-        bgr = np.where(bgr==[0,0,0], orig_image, bgr)
-        return bgr
+        bgr = np.where(bgr==[0,0,0], self.img, bgr)
+        self.img = bgr
 
 
-    def detect(self, img):
+    def detect(self):
 
-        output = self.model.forward(img).detach().cpu().numpy()
-        output_img = self.decode_segmap(output, img)
-        # boxes = output['boxes'].detach().cpu().numpy()
-        # scores = output['scores'].detach().cpu().numpy()
-        # labels = output['labels'].detach().cpu().numpy()
-        # for i, box in enumerate(boxes):
-        #     if scores[i] > 0.5:
-        #         color = (0,255,0)
-        #         self.draw_box(img, box, color, label=self.model.label_dict[labels[i]])
-        
-        return output_img
+        if self.img is not None:
+            output = self.model.forward(self.img)
+        else:
+            output = None
+
+        return output
+
+
+    def visualize_output(self, output):
+        if output is not None:
+            if isinstance(output, dict):
+
+                boxes = output['boxes']
+                scores = output['scores']
+                labels = output['labels']
+                for i in range(boxes.shape[0]):
+                    if scores[i] >= 0.8:
+                        label_id = labels[i]
+                        label = self.model.label_dict[int(label_id)]
+                        self.draw_box(boxes[i], label=label)
+            else:
+
+                self.decode_segmap(output)
+        else:
+            pass
+
+
 
 
 
@@ -168,6 +170,6 @@ if __name__ == '__main__':
 
     rospy.init_node('detector')
 
-    detector = Detection_Publisher()
-
+    detector = CV_Publisher('personface_detector')
+    
     rospy.spin()

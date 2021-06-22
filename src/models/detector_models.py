@@ -21,7 +21,7 @@ class Detector(Model):
 
         # If a custom transform is passed, then that will be applied to the numpy array as it is 
         # passed through .forward(). Otherwise, the default transform will be used, which converts
-        # numpy.ndarray of shape (H, W, C) to a torch tensor of shape (C, H, W) and resizes it to 540p.
+        # numpy.ndarray of shape (H, W, C) to a torch tensor of shape (C, H, W).
         if trf != None:
             self.trf = trf 
         else:
@@ -181,9 +181,11 @@ class PersonFace_Detector(Detector):
 
         print('Loading model state...')
 
-        state_dict_path = self.rospack.get_path('mr_cv/model_state_dicts/mobilenet_v3_state_dict_pytorch.pth')
+        # state_dict_path = self.rospack.get_path('mr_cv/model_state_dicts/mobilenet_v3_state_dict_pytorch.pth')
 
-        self.model.load_state_dict(torch.load(state_dict_path))
+        real_path = 'src/mr_cv/model_state_dicts/mobilenet_v3_state_dict_pytorch.pth'
+
+        self.model.load_state_dict(torch.load(real_path))
 
         print('Finished loading model.')
 
