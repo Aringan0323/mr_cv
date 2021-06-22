@@ -10,33 +10,34 @@ import numpy as np
 import torch
 from time import time
 import sys
+import rospkg
 
-from mr_cv.models.detector_models import COCO_Detector, PersonFace_Detector
-from mr_cv.models.segmentor_models import COCO_Segmentor
-
-from mr_cv.bridge import ImgBridge, OutputCVBridge
+from utils.bridge import ImgBridge, OutputCVBridge
+from models.segmentor_models import COCO_Segmentor
 
 
-class detector:
+class Detection_Publisher:
     # This is an abstract detector class
     # Each detector class will inherit some general methods from this class
     
 
-    def __init__(self, use_topics=True):
+    def __init__(self, use_topics=True, publish_img=True):
 
         # Must define the model in the class
 
         self.use_topics = use_topics
 
-        self.img_sub = rospy.Subscriber('/raspicam_node/image/compressed', CompressedImage, self.img_cb)
-
-        self.img_pub = rospy.Publisher('/output_img/compressed', CompressedImage, queue_size=1)
-
-        self.output_pub = rospy.Publisher('/output', OutputCV32, queue_size=1)
+        self.model = COCO_Segmentor()
 
         self.img_bridge = ImgBridge()
 
         self.output_bridge = OutputCVBridge()
+
+        self.img_pub = rospy.Publisher('/output_img/compressed', CompressedImage, queue_size=10)
+
+        self.output_pub = rospy.Publisher('/output', OutputCV32, queue_size=1)
+
+        self.img_sub = rospy.Subscriber('/raspicam_node/image/compressed', CompressedImage, self.img_cb)
 
         self.start = time()
 
@@ -53,7 +54,7 @@ class detector:
 
         img_detected = self.detect(img)
         
-        imgmsg_detected = bridge.np_to_imgmsg(img_detected)
+        imgmsg_detected = self.img_bridge.np_to_imgmsg(img_detected)
 
         if self.use_topics:
 
@@ -65,8 +66,11 @@ class detector:
 
         self.start = now
 
+        rospy.sleep(0.001)
+
         print('{} FPS'.format(round(fps, 2)))
-        
+
+
 
     def max_scoring_preds(self, boxes, labels, scores, labels_lst, score_threshold=0):
 
@@ -145,6 +149,25 @@ class detector:
 
 
     def detect(self, img):
-        
-        return img
 
+        output = self.model.forward(img).detach().cpu().numpy()
+        output_img = self.decode_segmap(output, img)
+        # boxes = output['boxes'].detach().cpu().numpy()
+        # scores = output['scores'].detach().cpu().numpy()
+        # labels = output['labels'].detach().cpu().numpy()
+        # for i, box in enumerate(boxes):
+        #     if scores[i] > 0.5:
+        #         color = (0,255,0)
+        #         self.draw_box(img, box, color, label=self.model.label_dict[labels[i]])
+        
+        return output_img
+
+
+
+if __name__ == '__main__':
+
+    rospy.init_node('detector')
+
+    detector = Detection_Publisher()
+
+    rospy.spin()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import rospy
 import torch
 import rospkg
 
@@ -17,8 +17,8 @@ class Model(object):
         self.rospack = rospkg.RosPack()
         
         # Define the transform and pytorch model
-        self.trf = identity
-        self.model = identity
+        self.trf = self.identity
+        self.model = self.identity
 
         # Create a dictionary mapping between label IDs and category names.
         # Example: self.labels_dict = {0 : "background"}

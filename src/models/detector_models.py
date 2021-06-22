@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
-from model_parent import Model
+import rospy
+from .model_parent import Model
 
 import torch
 import numpy as np
@@ -24,10 +24,9 @@ class Detector(Model):
         # numpy.ndarray of shape (H, W, C) to a torch tensor of shape (C, H, W) and resizes it to 540p.
         if trf != None:
             self.trf = trf 
-        else
+        else:
             self.trf = T.Compose([
-                T.ToTensor(),
-                T.Resize(540)
+                T.ToTensor()
             ])
 
 
@@ -36,8 +35,7 @@ class Detector(Model):
         inpt = self.trf(img).to(self.device).unsqueeze(0)
 
         # Passing preprocessed image into model
-        output = self.model(inpt)
-
+        output = self.model(inpt)[0]
         output['boxes'].detach()
         output['scores'].detach()
         output['labels'].detach()
@@ -52,7 +50,7 @@ class COCO_Detector(Detector):
 
         super().__init__(trf)
 
-        self.model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
+        self.model = self.model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
 
         self.model.to(self.device)
 

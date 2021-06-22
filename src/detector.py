@@ -11,8 +11,9 @@ import torch
 from time import time
 import sys
 
-from models import face_person_mobilenet, coco_mobilenet, coco_segmentation_mobilenet
-import bridge
+from .models import detector_models
+
+import .bridge
 
 
 class detector:

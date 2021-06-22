@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
-from model_parent import Model
+import rospy
+from .model_parent import Model
 
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.rpn import AnchorGenerator
@@ -25,10 +25,9 @@ class Segmentor(Model):
 
         if trf != None:
             self.trf = trf 
-        else
+        else:
             self.trf = T.Compose([
                 T.ToTensor(),
-                T.Resize(540),
                 T.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
             ])
 
@@ -47,6 +46,14 @@ class COCO_Segmentor(Segmentor):
     def __init__(self, trf=None):
 
         super().__init__(trf)
+
+        self.model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
+
+        self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
+
+        self.model.eval()
 
         self.label_dict = {
             0: 'background',
