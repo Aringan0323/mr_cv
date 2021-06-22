@@ -18,8 +18,14 @@ from models.detector_models import COCO_Detector, PersonFace_Detector
 
 
 class CV_Publisher:
-    # This is an abstract detector class
-    # Each detector class will inherit some general methods from this class
+    # The user can input a keyword that corresponds to the type
+    # of model that they would like to use, and then this class 
+    # will publish an OutputCV topic as well as a marked-up image
+    # of the detection when rospy.spin() is called.
+
+    # The user can also choose not to publish topics and instead
+    # simply receive the raw model output from the detect() function
+    # if they specify use_topics=False.
     
 
     def __init__(self, model_keyword, use_topics=True):
@@ -168,8 +174,10 @@ class CV_Publisher:
 
 if __name__ == '__main__':
 
+    available_models = ['coco_detector', 'personface_detector', 'coco_segmentor']
+
     rospy.init_node('detector')
 
-    detector = CV_Publisher('personface_detector')
+    detector = CV_Publisher(available_models[0])
     
     rospy.spin()
