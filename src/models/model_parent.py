@@ -21,8 +21,9 @@ class Model(object):
         self.model = self.identity
 
         # Create a dictionary mapping between label IDs and category names.
-        # Example: self.labels_dict = {0 : "background"}
-        self.labels_dict = {}
+        # Example: self.label_dict = {0 : "background"}
+        self.label_dict = {}
+        self.label_list = []
 
 
     @staticmethod

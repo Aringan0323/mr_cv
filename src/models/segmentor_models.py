@@ -31,29 +31,22 @@ class Segmentor(Model):
                 T.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
             ])
 
+        self.sigmoid = torch.nn.Sigmoid()
+
 
     def forward(self, img):
 
         inpt = self.trf(img).to(self.device).unsqueeze(0)
         out = self.model(inpt)['out']
-        masks = torch.argmax(out.squeeze(), dim=0).detach()
-
-        return masks
+        masks = out.squeeze().detach()
+        return self.sigmoid(masks)
 
 
 class COCO_Segmentor(Segmentor):
 
     def __init__(self, trf=None):
 
-        super().__init__(trf)
-
-        self.model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
-
-        self.model.to(self.device)
-
-        print("Model is running on {}".format(self.device))
-
-        self.model.eval()
+        super().__init__(trf=trf)
 
         self.label_dict = {
             0: 'background',
@@ -78,3 +71,35 @@ class COCO_Segmentor(Segmentor):
             19: 'train', 
             20: 'tvmonitor'
         }
+
+        self.label_list = list(self.label_dict.values())
+
+
+class COCO_Segmentor_Accurate(COCO_Segmentor):
+
+    def __init__(self, trf=None):
+
+        super().__init__(trf=trf)
+
+        self.model = torchvision.models.segmentation.fcn_resnet101(pretrained=True)
+
+        self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
+
+        self.model.eval()
+
+
+class COCO_Segmentor_Fast(COCO_Segmentor):
+
+    def __init__(self, trf=None):
+
+        super().__init__(trf=trf)
+
+        self.model = torchvision.models.segmentation.lraspp_mobilenet_v3_large(pretrained=True)
+
+        self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
+
+        self.model.eval()

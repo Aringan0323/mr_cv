@@ -1,4 +1,6 @@
 string type
+int32[] img_resolution
+string[] label_list
 
 int32[] mask_shape
 float32[] mask

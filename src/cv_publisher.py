@@ -8,13 +8,16 @@ from mr_cv.msg import OutputCV64
 import cv2
 import numpy as np
 import torch
+import torchvision as tv
 from time import time
 import sys
 import rospkg
 
 from utils.bridge import ImgBridge, OutputCVBridge
-from models.segmentor_models import COCO_Segmentor
-from models.detector_models import COCO_Detector, PersonFace_Detector
+from models.segmentor_models import COCO_Segmentor_Fast, COCO_Segmentor_Accurate
+from models.detector_models import COCO_Detector_Fast, COCO_Detector_Accurate, PersonFace_Detector
+
+from utils.out_processing import mask_centroid
 
 
 class CV_Publisher:
@@ -28,15 +31,19 @@ class CV_Publisher:
     # if they specify use_topics=False.
     
 
-    def __init__(self, model_keyword, use_topics=True):
+    def __init__(self, model_keyword, use_topics=True, visualization_threshold=0.6):
 
-        model_dict = {'coco_segmentor':COCO_Segmentor, 'coco_detector':COCO_Detector, 'personface_detector':PersonFace_Detector}
+        model_dict = {'coco_segmentor_fast':COCO_Segmentor_Fast, 
+                        'coco_segmentor_accurate':COCO_Segmentor_Accurate, 
+                        'coco_detector_fast':COCO_Detector_Fast,
+                        'coco_detector_accurate':COCO_Detector_Accurate,
+                        'personface_detector':PersonFace_Detector}
 
-        # Must define the model in the class
+        self.model = model_dict[model_keyword]()
 
         self.use_topics = use_topics
 
-        self.model = model_dict[model_keyword]()
+        self.visualization_threshold = visualization_threshold
 
         self.img_bridge = ImgBridge()
 
@@ -47,6 +54,8 @@ class CV_Publisher:
             self.img_pub = rospy.Publisher('/output_img/compressed', CompressedImage, queue_size=10)
 
             self.output_pub = rospy.Publisher('/output', OutputCV32, queue_size=1)
+
+            self.sigmoid = torch.nn.Sigmoid()
 
         self.img = None
 
@@ -66,10 +75,11 @@ class CV_Publisher:
 
             output = self.detect()
             self.visualize_output(output)
-
-            outmsg = self.output_bridge.torch_to_outputcv(output)
+            cX, cY = mask_centroid(self.bool_mask(output))
+            img_resolution = list(self.img.shape[0:2])
+            outmsg = self.output_bridge.torch_to_outputcv(output, img_resolution, self.model.label_list)
             self.output_pub.publish(outmsg)
-
+            self.img = cv2.circle(self.img, (cX, cY), 10, (0,0,255), -1)
             imgmsg_detected = self.img_bridge.np_to_imgmsg(self.img)
             self.img_pub.publish(imgmsg_detected)
 
@@ -87,57 +97,14 @@ class CV_Publisher:
             print('{} FPS'.format(round(fps, 2)))
 
 
-    def draw_box(self, box, label=''):
+    def bool_mask(self, masks):
 
-        cv2.rectangle(
-                        self.img,
-                        (int(box[0]), int(box[1])),
-                        (int(box[2]), int(box[3])), 
-                        (0,255,0), 4
-                    )
+        bool_masks = torch.ones(masks.shape, dtype=torch.bool).cuda()
 
-        if label != '':
-            self.label_box(box, label)
-
-    
-    def label_box(self, box, label):
-
-        org = (int(box[0]+10), int(box[1]+40))
-
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        fontScale = 1
-        thickness = 2
-
-        cv2.rectangle(self.img, (int(box[0]), int(box[1])), (int(box[0]+(20*len(label))), int(box[1]+50)),  (0,0,0), -1)
-
-        image = cv2.putText(self.img, label, org, font, 
-                        fontScale, (255,255,255), thickness, cv2.LINE_AA)
-
-
-    def decode_segmap(self, output, nc=21):
-        # Source for this code: https://learnopencv.com/pytorch-for-beginners-semantic-segmentation-using-torchvision/
-        output = output.cpu().numpy()
-        label_colors = np.array([  # 0=background
-                (0,0,0),
-               # 1=aeroplane, 2=bicycle, 3=bird, 4=boat, 5=bottle
-               (128, 0, 0), (0, 128, 0), (128, 128, 0), (0, 0, 128), (128, 0, 128),
-               # 6=bus, 7=car, 8=cat, 9=chair, 10=cow
-               (0, 128, 128), (128, 128, 128), (64, 0, 0), (192, 0, 0), (64, 128, 0),
-               # 11=dining table, 12=dog, 13=horse, 14=motorbike, 15=person
-               (192, 128, 0), (64, 0, 128), (192, 0, 128), (64, 128, 128), (192, 128, 128),
-               # 16=potted plant, 17=sheep, 18=sofa, 19=train, 20=tv/monitor
-               (0, 64, 0), (128, 64, 0), (0, 192, 0), (128, 192, 0), (0, 64, 128)])
-        r = np.zeros_like(output).astype(np.uint8)
-        g = np.zeros_like(output).astype(np.uint8)
-        b = np.zeros_like(output).astype(np.uint8)
-        for l in range(0, nc):
-            idx = output == l
-            r[idx] = label_colors[l, 2]
-            g[idx] = label_colors[l, 1]
-            b[idx] = label_colors[l, 0]
-        bgr = np.stack([b, g, r], axis=2)
-        bgr = np.where(bgr==[0,0,0], self.img, bgr)
-        self.img = bgr
+        for i in range(masks.shape[0]):
+            bool_masks[i] = (masks.argmax(0) == i)
+        
+        return bool_masks
 
 
     def detect(self):
@@ -152,19 +119,30 @@ class CV_Publisher:
 
     def visualize_output(self, output):
         if output is not None:
+
+            torch_img = torch.from_numpy(self.img.transpose((2, 0, 1)))
+
             if isinstance(output, dict):
 
                 boxes = output['boxes']
                 scores = output['scores']
                 labels = output['labels']
-                for i in range(boxes.shape[0]):
-                    if scores[i] >= 0.8:
-                        label_id = labels[i]
-                        label = self.model.label_dict[int(label_id)]
-                        self.draw_box(boxes[i], label=label)
-            else:
 
-                self.decode_segmap(output)
+                confident_boxes = boxes[scores >= self.visualization_threshold]
+                confident_labels = labels[scores >= self.visualization_threshold]
+                confident_scores = scores[scores >= self.visualization_threshold]
+
+                box_labels = [self.model.label_dict[int(id)] + ": " + str(round(float(confident_scores[i])*100)) + "%" for i, id in enumerate(confident_labels)]
+
+                self.img = tv.utils.draw_bounding_boxes(torch_img, 
+                                                        confident_boxes, 
+                                                        labels=box_labels,
+                                                        colors=[(0,255,0)]*len(box_labels) 
+                                                        ).numpy().transpose((1, 2, 0))
+
+            else:
+                bool_masks = self.bool_mask(output)
+                self.img = tv.utils.draw_segmentation_masks(torch_img, bool_masks, alpha=.8).numpy().transpose((1, 2, 0))
         else:
             pass
 
@@ -174,10 +152,11 @@ class CV_Publisher:
 
 if __name__ == '__main__':
 
-    available_models = ['coco_detector', 'personface_detector', 'coco_segmentor']
 
     rospy.init_node('detector')
 
-    detector = CV_Publisher(available_models[0])
+    model = str(rospy.get_param('~model'))
+
+    detector = CV_Publisher(model)
     
     rospy.spin()

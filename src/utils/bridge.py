@@ -53,7 +53,7 @@ class OutputCVBridge:
         self.bit = bit
         
 
-    def torch_to_outputcv(self, output):
+    def torch_to_outputcv(self, output, img_resolution, label_list):
         # Takes in as input the detection output from either a box-detection or a 
         # segmentation pytorch model and converts it into an OutputCV ROS message.
 
@@ -64,6 +64,9 @@ class OutputCVBridge:
         else:
             print('{} bit message types not supported'.format(bit))
             return
+        
+        outmsg.img_resolution = img_resolution
+        outmsg.label_list = label_list
 
         if isinstance(output, dict):
             outmsg.type = 'detection'
@@ -101,25 +104,48 @@ class OutputCVBridge:
         return outmsg
 
 
-    def outputcv_to_torch(self, new_outmsg):
+    def outputcv_to_torch(self, outmsg):
         # Converts either a OutputCV32 or OutputCV64 ROS message into a pytorch tensor
         # or a dictionary of pytorch tensors (depending on if it is a segmentor or detector output).
 
-        if new_outmsg.type == 'detection':
+        if outmsg.type == 'detection':
 
             tensor = {}
-            tensor['boxes'] = torch.Tensor(new_outmsg.boxes).view(new_outmsg.boxes_shape)
-            tensor['scores'] = torch.Tensor(new_outmsg.scores).view(new_outmsg.scores_shape)
-            tensor['labels'] = torch.Tensor(new_outmsg.labels).view(new_outmsg.labels_shape)
+            tensor['boxes'] = torch.Tensor(outmsg.boxes).view(outmsg.boxes_shape)
+            tensor['scores'] = torch.Tensor(outmsg.scores).view(outmsg.scores_shape)
+            tensor['labels'] = torch.Tensor(outmsg.labels).view(outmsg.labels_shape)
 
-        elif new_outmsg.type == 'segmentation':
+        elif outmsg.type == 'segmentation':
 
-            tensor = torch.Tensor(new_outmsg.mask).view(new_outmsg.mask_shape)
+            tensor = torch.Tensor(outmsg.mask).view(outmsg.mask_shape)
 
         else:
 
-            print('"{}" is an unsupported OutputCV type'.format(new_outmsg.type))
+            print('"{}" is an unsupported OutputCV type'.format(outmsg.type))
             return
 
-        return tensor
+        return tensor, outmsg.img_resolution, outmsg.label_list
 
+    def outputcv_to_np(self, outmsg):
+        
+        if outmsg.type == 'detection':
+
+            ndarray = {}
+            boxes = np.array(outmsg.boxes)
+            ndarray['boxes'] = np.reshape(boxes, tuple(outmsg.boxes_shape))
+            scores = np.array(outmsg.scores)
+            ndarray['scores'] = np.reshape(scores, tuple(outmsg.scores_shape))
+            labels = np.array(outmsg.labels)
+            ndarray['labels'] = np.reshape(labels, tuple(outmsg.labels_shape))
+
+        elif outmsg.type == 'segmentation':
+
+            mask = np.array(outmsg.mask)
+            ndarray = np.reshape(mask, tuple(outmsg.mask_shape))
+
+        else:
+
+            print('"{}" is an unsupported OutputCV type'.format(outmsg.type))
+            return
+
+        return ndarray, outmsg.img_resolution, outmsg.label_list

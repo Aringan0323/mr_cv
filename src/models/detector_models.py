@@ -48,15 +48,7 @@ class COCO_Detector(Detector):
 
     def __init__(self, trf=None):
 
-        super().__init__(trf)
-
-        self.model = self.model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
-
-        self.model.to(self.device)
-
-        print("Model is running on {}".format(self.device))
-
-        self.model.eval()
+        super().__init__(trf=trf)
 
         self.label_dict = {
             0: 'background',
@@ -152,6 +144,38 @@ class COCO_Detector(Detector):
             90: 'toothbrush'
         }
 
+        self.label_list = list(self.label_dict.values())
+
+
+class COCO_Detector_Fast(COCO_Detector):
+
+    def __init__(self, trf=None):
+
+        super().__init__(trf=trf)
+
+        self.model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
+
+        self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
+
+        self.model.eval()
+
+
+class COCO_Detector_Accurate(COCO_Detector):
+
+    def __init__(self, trf=None):
+
+        super().__init__(trf=trf)
+
+        self.model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+
+        self.model.to(self.device)
+
+        print("Model is running on {}".format(self.device))
+
+        self.model.eval()
+
 
 class PersonFace_Detector(Detector):
 
@@ -200,4 +224,6 @@ class PersonFace_Detector(Detector):
             1: 'person', 
             2: 'face'
         }
+
+        self.label_list = list(self.label_dict.values())
 
