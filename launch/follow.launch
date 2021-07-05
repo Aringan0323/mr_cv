@@ -1,14 +1,19 @@
 <launch>
 
-    <arg name="model" default="coco_detector"/>
+    <arg name="model" default="coco_detector_accurate"/>
     <arg name="item" default="person"/>
+    <arg name="action" default="follow"/>
 
     <node name="detector" pkg="mr_cv" type="cv_publisher.py" >
         <param name="model" value="$(arg model)"/>
     </node>
+
+    <node name="filter" pkg="mr_cv" type="cv_publisher.py" >
+        <param name="item" value="$(arg item)"/>
+    </node>
     
     <node name="actuator" pkg="mr_cv" type="actuator.py" >
-        <param name="item" value="$(arg item)" />
+        <param name="action" value="$(arg action)" />
     </node>
 
 </launch>

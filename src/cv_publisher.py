@@ -2,8 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import CompressedImage
-from mr_cv.msg import OutputCV32
-from mr_cv.msg import OutputCV64
+from mr_cv.msg import OutputCV
 
 import cv2
 import numpy as np
@@ -17,7 +16,6 @@ from utils.bridge import ImgBridge, OutputCVBridge
 from models.segmentor_models import COCO_Segmentor_Fast, COCO_Segmentor_Accurate
 from models.detector_models import COCO_Detector_Fast, COCO_Detector_Accurate, PersonFace_Detector
 
-from utils.out_processing import mask_centroid
 
 
 class CV_Publisher:
@@ -53,7 +51,7 @@ class CV_Publisher:
 
             self.img_pub = rospy.Publisher('/output_img/compressed', CompressedImage, queue_size=10)
 
-            self.output_pub = rospy.Publisher('/output', OutputCV32, queue_size=1)
+            self.output_pub = rospy.Publisher('/output', OutputCV, queue_size=1)
 
             self.sigmoid = torch.nn.Sigmoid()
 
@@ -75,11 +73,12 @@ class CV_Publisher:
 
             output = self.detect()
             self.visualize_output(output)
-            cX, cY = mask_centroid(self.bool_mask(output))
+
             img_resolution = list(self.img.shape[0:2])
+
             outmsg = self.output_bridge.torch_to_outputcv(output, img_resolution, self.model.label_list)
             self.output_pub.publish(outmsg)
-            self.img = cv2.circle(self.img, (cX, cY), 10, (0,0,255), -1)
+
             imgmsg_detected = self.img_bridge.np_to_imgmsg(self.img)
             self.img_pub.publish(imgmsg_detected)
 
@@ -157,6 +156,6 @@ if __name__ == '__main__':
 
     model = str(rospy.get_param('~model'))
 
-    detector = CV_Publisher(model)
+    detector = CV_Publisher('coco_detector_accurate')
     
     rospy.spin()

@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
+
 import rospy
 from sensor_msgs.msg import CompressedImage
-from mr_cv.msg import OutputCV32
-from mr_cv.msg import OutputCV64
-from std_msgs.msg import Float32MultiArray
-from std_msgs.msg import Float64
-from std_msgs.msg import MultiArrayDimension
+from mr_cv.msg import OutputCV
 import numpy as np
 import torch
 import cv2
@@ -44,26 +41,17 @@ class ImgBridge:
 class OutputCVBridge:
 
 
-    def __init__(self, bit=32):
+    def __init__(self):
         # The bit parameter is by default 32 bit which means that the class will
-        # convert torch tensors to OutputCV32 messages in the torch_to_outputcv()
+        # convert torch tensors to OutputCV messages in the torch_to_outputcv()
         # function. Can be changed to 64 which will do the same but for OutputCV64
         # message types instead.
-
-        self.bit = bit
-        
 
     def torch_to_outputcv(self, output, img_resolution, label_list):
         # Takes in as input the detection output from either a box-detection or a 
         # segmentation pytorch model and converts it into an OutputCV ROS message.
 
-        if self.bit == 32:
-            outmsg = OutputCV32()
-        elif self.bit == 64:
-            outmsg = OutputCV64()
-        else:
-            print('{} bit message types not supported'.format(bit))
-            return
+        outmsg = OutputCV()
         
         outmsg.img_resolution = img_resolution
         outmsg.label_list = label_list
@@ -105,7 +93,7 @@ class OutputCVBridge:
 
 
     def outputcv_to_torch(self, outmsg):
-        # Converts either a OutputCV32 or OutputCV64 ROS message into a pytorch tensor
+        # Converts either a OutputCV or OutputCV64 ROS message into a pytorch tensor
         # or a dictionary of pytorch tensors (depending on if it is a segmentor or detector output).
 
         if outmsg.type == 'detection':
@@ -124,7 +112,7 @@ class OutputCVBridge:
             print('"{}" is an unsupported OutputCV type'.format(outmsg.type))
             return
 
-        return tensor, outmsg.img_resolution, outmsg.label_list
+        return tensor, list(outmsg.img_resolution), outmsg.label_list
 
     def outputcv_to_np(self, outmsg):
         
@@ -148,4 +136,4 @@ class OutputCVBridge:
             print('"{}" is an unsupported OutputCV type'.format(outmsg.type))
             return
 
-        return ndarray, outmsg.img_resolution, outmsg.label_list
+        return ndarray, list(outmsg.img_resolution), outmsg.label_list

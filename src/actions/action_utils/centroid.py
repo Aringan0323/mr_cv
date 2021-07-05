@@ -6,7 +6,7 @@ import torch
 import cv2
 
 
-def box_centroid(box, img_resolution):
+def box_centroid(box):
 
     cX = (box[0]+box[2])/2
 
@@ -16,12 +16,10 @@ def box_centroid(box, img_resolution):
 
 
 
-
+# Should calculate the centroid of a mask. Does not yet work
 def mask_centroid(mask):
 
-    np_mask = mask.cpu().numpy()[15]
-    print(np_mask.shape)
-    M = cv2.moments(np_mask)
+    M = cv2.moments(mask)
     cX = int(M["m10"] / M["m00"])
     cY = int(M["m01"] / M["m00"])
 
