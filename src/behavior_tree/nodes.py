@@ -89,6 +89,28 @@ class Sequencer(ParentNode):
         return status
 
 
+# class Repeater(ParentNode):
+
+#     def __init__(self, child, condition):
+
+#         super().__init__([child])
+
+#         self.condition = condition
+
+
+#     @abstractmethod
+#     def tick(self, blackboard):
+
+#         return "success"
+
+
+# class TimedRepeater(Repeater):
+
+
+#     def tick(self, blackboard):
+
+
+
 
 class Action(Node):
     '''
@@ -104,28 +126,42 @@ class Action(Node):
     '''
 
 
+class Update(Node):
+    '''
+    The Update class is a leaf node in the behavior tree which performs some calculation/algorithm
+    on information in the blackboard and updates the blackboard with new information.
+
+    Each update should be tick based, so during each tick the .tick() method of an update
+    will either return "failure", or "success" depending whether or not the update is successful
+
+    This class is not meant to be initialized, but serves as an abstract parent class for users
+    to construct their own updates with custom methods.
+    '''
+
+
 class Conditional(Node):
     '''
     The Conditional class is a leaf node in the behavior tree which returns either
-    "success" or "failure" based on the boolean output from the callback function.
+    "success" or "failure" based on the boolean output from the condition function.
     Note that unlike other types of behavior tree nodes, a Conditional node will never
     return "running".
-    
-    The callback functon is passed in by the user and takes in the blackboard as the
-    only input parameter.
+
+    The condition functon should be user defined and return a boolean value. 
+
+    This class is not meant to be initialized, but serves as an abstract parent class for
+    users to construct their own Conditional nodes with custom conditional functions.
     '''
 
-    def __init__(self, cb):
+    
+    @abstractmethod
+    def condition(self, blackboard):
 
-        super().__init__()
-
-        self.cb = cb
-
+        return True
 
 
     def tick(self, blackboard):
 
-        condition_met = self.cb(blackboard)
+        condition_met = self.condition(blackboard)
 
         if condition_met:
             

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import sys
+sys.path.append("..")
+
 import rospy
 import time
 
@@ -13,31 +16,73 @@ simple behavior tree construction where we have a blackboard with "environment s
 and nodes which interact with and view that environment.
 '''
 
-def door_cb(blackboard):
-    
-    return blackboard['open']
+class DoorOpen(Conditional):
 
-def key_cb(blackboard):
+    def condition(self, blackboard):
+        
+        open = blackboard['open']
+        if open:
+            print("The door is open!")
+        else:
+            print("The door is not opened")
 
-    return blackboard['key']
+        return open
 
-def person_cb(blackboard):
 
-    return blackboard['person nearby']
+class HasKey(Conditional):
 
-def crowbar_cb(blackboard):
+    def condition(self, blackboard):
+        
+        has_key = blackboard['key']
 
-    return blackboard['crowbar']
+        if has_key:
+            print('I have a key')
+        else:
+            print("I don't have a key")
 
-def door_type_cb(blackboard):
+        return has_key
 
-    door_type = blackboard['door type']
 
-    if door_type == 'thin':
-        return True
-    else:
-        print('door is too thick')
-        return False
+class PersonNearby(Conditional):
+
+    def condition(self, blackboard):
+        
+        nearby = blackboard['person nearby']
+
+        if nearby:
+            print("There is a person nearby, I will ask for help")
+        else:
+            print("No one is around to help")
+
+        return blackboard['person nearby']
+
+
+class HasCrowbar(Conditional):
+
+    def condition(self, blackboard):
+        
+        has_crowbar = blackboard['crowbar']
+
+        if has_crowbar:
+            print("I have a crowbar with me")
+        else:
+            print("I do not have a crowbar")
+
+        return has_crowbar
+
+
+class DoorThin(Conditional):
+
+    def condition(self, blackboard):
+
+        door_type = blackboard['door type']
+
+        if door_type == 'thin':
+            print("The door is thin enough to try to break down")
+            return True
+        else:
+            print('The door is too thick to break down')
+            return False
 
 
 class OpenWithKey(Action):
@@ -45,12 +90,12 @@ class OpenWithKey(Action):
     def tick(self, blackboard):
 
         if blackboard['door health'] > 10:
-            print('Door is barracaded, key did not work')
+            print('Door is jammed with something, the key did not work')
             return 'failure'
         else:
             blackboard['open'] = True
 
-            print('Opened door with key')
+            print('I just opened door with the key')
 
             return 'success'
 
@@ -61,11 +106,11 @@ class PersonOpen(Action):
 
         if blackboard['person nice']:
 
-            print('Had person open door')
+            print('The person opened the door for me')
             blackboard['open'] = True
             return 'success'
         else:
-            print('Person did not open door')
+            print('That person was nasty, they did not open the door')
             return 'failure'
 
 
@@ -85,12 +130,6 @@ class BreakDoor(Action):
             return 'success'
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
 
     blackboard = {
@@ -98,18 +137,18 @@ if __name__ == '__main__':
         'key':True,
         'door jammed':True,
         'person nearby':True,
-        'person nice':False,
+        'person nice':True,
         'crowbar':True,
         'door type':'thin',
-        'door health':70
+        'door health':15
     }
 
 
-    door_open = Conditional(door_cb)
-    has_key = Conditional(key_cb)
-    person_nearby = Conditional(person_cb)
-    has_crowbar = Conditional(crowbar_cb)
-    thin_door = Conditional(door_type_cb)
+    door_open = DoorOpen()
+    has_key = HasKey()
+    person_nearby = PersonNearby()
+    has_crowbar = HasCrowbar()
+    thin_door = DoorThin()
 
     open_door_key = OpenWithKey()
     person_open_door = PersonOpen()
