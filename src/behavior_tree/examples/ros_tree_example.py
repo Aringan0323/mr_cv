@@ -11,19 +11,40 @@ from sensor_msgs.msg import CompressedImage
 
 import numpy as np
 
-from nodes import Conditional, Action, Sequencer, Selector
+from nodes import Conditional, Action, Update, Sequencer, Selector
 
-from action_nodes.basic_movement import *
+from action_nodes.basic_movement import LinearStatic, LinearDynamic, AngularStatic, AngularDynamic, LinearAngularStatic, LinearAngularDynamic, Stop
 
-from update_nodes.basic_updates import *
-from update_nodes.movement_control_updates import *
-from update_nodes.cv_updates import *
-from update_nodes.scan_updates import *
+from update_nodes.basic_updates import FlipBoolVar, IncrementVar, OffsetVar
+from update_nodes.movement_control_updates import LinearPID, AngularPID
+from update_nodes.cv_updates import FastDetector, ItemBearingErr
+from update_nodes.scan_updates import CalcNearestWallAngle, CalcNearestDist, CalcAvgFrontDist
 
-from conditional_nodes.scan_conditionals import *
-from conditional_nodes.basic_conditionals import *
+from conditional_nodes.scan_conditionals import WallAhead, ClearAhead
+from conditional_nodes.basic_conditionals import BoolVar, BoolVarNot
 
 from ros_behavior_tree import ROSBehaviorTree
+
+import json
+
+
+
+master_dict = {
+    
+    "Conditional":Conditional, "Action":Action, "Update":Update, "Sequencer":Sequencer, "Selector":Selector, 
+    "LinearStatic":LinearStatic, "LinearDynamic":LinearDynamic, "AngularStatic":AngularStatic, "AngularDynamic":AngularDynamic,
+    "LinearAngularStatic":LinearAngularStatic, "LinearAngularDynamic":LinearAngularDynamic, "Stop", Stop,
+    "FlipBoolVar":FlipBoolVar, "IncrementVar":IncrementVar, "OffsetVar":OffsetVar,
+    "LinearPID":LinearPID, "AngularPID":AngularPID,
+    "FastDetector":FastDetector, "ItemBearingErr":ItemBearingErr,
+    "CalcNearestWallAngle":CalcNearestWallAngle, "CalcNearestDist":CalcNearestDist, "CalcAvgFrontDist":CalcAvgFrontDist,
+    "WallAhead":WallAhead, "ClearAhead":ClearAhead,
+    "BoolVar":BoolVar, "BoolVarNot":BoolVarNot
+}
+
+
+
+
 
 
 def WallAvoider(wall_dist=0.5, front_fov=50, turn_vel=0.3):
@@ -78,6 +99,8 @@ def WallFollower(front_dist_fov=10, wall_follow_dist=0.05, lin_vel=0.1):
     avg_front_dist = CalcAvgFrontDist('/scan', 'avg_front_dist', 10)
 
     offset = 3.14159/2
+
+
     angular_pid = AngularPID('angular_pid', 'nearest_dist', 'nearest_wall_angle', 0.7, 0.7, 0.8, wall_follow_dist, offset=offset)
 
     linear_pid = LinearPID('linear_pid', 'avg_front_dist', lin_vel, offset=wall_follow_dist)
@@ -95,7 +118,7 @@ def ItemFollower(item="person", stopper="bottle", stopping_dist=0.07, stopping_f
 
     detect = FastDetector('detector_label_dict', '/raspicam_node/image/compressed', 'detection')
 
-    # item_err_var_name, label_dict_var_name, item_var_name, detection_var_name, camera_resolution
+    # item_err_var_name, label_dict_var_name, item_id, detection_var_name, camera_resolution, threshold=0.8
     stopper = ItemBearingErr('_', 'detector_label_dict', stopper, 'detection', cam_res)
     stop = Stop()
     saw_stopper = Sequencer([stopper, stop])

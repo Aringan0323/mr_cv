@@ -1,0 +1,135 @@
+{
+  "name":"root",
+  "type":"Selector",
+  "children":[
+    {
+      "name":"Follow the specified item and avoid collisions and stopper object",
+      "type":"Sequencer",
+      "children":[
+        {
+          "name":"Is there an obstacle ahead?",
+          "type":"ClearAhead",
+          "stopping_dist":0.07,
+          "stopping_fov":30
+        },
+        {
+          "name":"Run box detector model",
+          "type":"FastDetector",
+          "label_dict_var_name":"detector_label_dict",
+          "camera_var_name":"/raspicam_node/image/compressed",
+          "detection_var_name":"detection"
+        },
+        {
+          "name":"Follow item, stop if stopper is visible",
+          "type":"Selector",
+          "children":[
+            {
+              "name":"If stopper is visible, then stop",
+              "type":"Sequencer",
+              "children":[
+                {
+                  "name":"Is stopper visible?",
+                  "type":"ItemBearingErr",
+                  "item_err_var_name":"_",
+                  "label_dict_var_name":"detector_label_dict",
+                  "item_id":"bottle",
+                  "detection_var_name":"detection",
+                  "cam_res":[410,308]
+                },
+                {
+                  "name":"Stop!",
+                  "type":"Stop"
+                }
+              ]
+            },
+            {
+              "name":"Follow item if visible",
+              "type":"Sequencer",
+              "children":[
+                {
+                  "name":"Calculate bearing to item",
+                  "type":"ItemBearingErr",
+                  "item_err_var_name":"item_err",
+                  "label_dict_var_name":"detector_label_dict",
+                  "item_id":"person",
+                  "detection_var_name":"detection",
+                  "camera_resolution":[410,308]
+                },
+                {
+                  "name":"Move forward in direction of bearing",
+                  "type":"LinearAngularDynamic",
+                  "linear_var_name":"static_lin",
+                  "angular_var_name":"item_err"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name":"Follow the wall",
+      "type":"Sequencer",
+      "children":[
+        {
+          "name":"Calculate the angle to the nearest wall",
+          "type":"CalcNearestWallAngle",
+          "scan_var_name":"/scan",
+          "angle_var_name":"nearest_wall_angle"
+        },
+        {
+          "name":"Calculate the nearest distance",
+          "type":"CalcNearestDist",
+          "scan_var_name":"/scan",
+          "dist_var_name":"nearest_dist"
+        },
+        {
+          "name":"Calculate the average distance in front",
+          "type":"CalcAvgFrontDist",
+          "scan_var_name":"/scan",
+          "dist_var_name":"avg_front_dist"
+        },
+        {
+          "name":"Calculate angular velocity necessary to be parallel to the wall",
+          "type":"AngularPID",
+          "pid_err_var_name":"angular_pid",
+          "nearest_dist_var_name":"nearest_dist",
+          "nearest_angle_var_name":"nearest_wall_angle",
+          "kp":0.7,
+          "kd":0.7,
+          "kp2":0.8,
+          "dwall":0.05,
+          "offset":1.57079
+        },
+        {
+          "name":"Calculate linear velocity necessary to avoid collision",
+          "type":"LinearPID",
+          "linear_pid_var_name":"linear_pid",
+          "diff_var_name":"avg_front_dist",
+          "max_vel":0.1,
+          "offset":0.05
+        },
+        {
+          "name":"Move according to PID calculations",
+          "type":"LinearAngularDynamic",
+          "linear_var_name":"linear_pid",
+          "angular_var_name":"angular_pid"
+        }
+      ]
+    }
+  ],
+  "blackboard":{
+    "/scan":"LaserScan",
+    "/raspicam_node/image/compressed":"CompressedImage",
+    "detector_label_dict": null,
+    "detection":null,
+    "static_lin":0.1,
+    "item_lin":null,
+    "nearest_wall_angle":null,
+    "nearest_dist":null,
+    "avg_front_dist":null,
+    "angular_pid":null,
+    "linear_pid":null,
+    "__":null
+  }
+}
