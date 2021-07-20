@@ -13,6 +13,11 @@ from sensor_msgs.msg import LaserScan
 from nodes import Action
 
 
+class MoveToPositionDynamic(Action):
+
+    def __init__(self, odom_var_name, pos_var_name, max_vel):
+
+        
 
 
 class RotateToAngleDynamic(Action):

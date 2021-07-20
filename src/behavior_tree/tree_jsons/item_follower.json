@@ -1,0 +1,26 @@
+{
+    "name":"Item Follower",
+    "type":"Selector",
+    "children":[
+        {
+            "ref":"tree_jsons/follow_and_avoid.json"
+        },
+        {
+            "ref":"tree_jsons/follow_wall.json"
+        }
+    ],
+    "blackboard":{
+        "/scan":"LaserScan",
+        "/raspicam_node/image/compressed":"CompressedImage",
+        "detector_label_dict": null,
+        "detection":null,
+        "static_lin":0.1,
+        "item_lin":null,
+        "nearest_wall_angle":null,
+        "nearest_dist":null,
+        "avg_front_dist":null,
+        "angular_pid":null,
+        "linear_pid":null,
+        "__":null
+      }
+}

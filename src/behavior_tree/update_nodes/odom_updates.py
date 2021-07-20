@@ -11,6 +11,19 @@ from nav_msgs.msg import Odometry
 from nodes import Update
 
 
+class GetPosition(Update):
+
+    def __init__(self, odom_var_name):
+
+        self.odom_var_name = odom_var_name
+
+
+    def tick(self, blackboard):
+
+        
+
+
+
 class GetRotation(Update):
 
 

@@ -87,7 +87,8 @@
           "name":"Calculate the average distance in front",
           "type":"CalcAvgFrontDist",
           "scan_var_name":"/scan",
-          "dist_var_name":"avg_front_dist"
+          "dist_var_name":"avg_front_dist",
+          "fov":30
         },
         {
           "name":"Calculate angular velocity necessary to be parallel to the wall",
@@ -98,7 +99,7 @@
           "kp":0.7,
           "kd":0.7,
           "kp2":0.8,
-          "dwall":0.05,
+          "dwall":0.09,
           "offset":1.57079
         },
         {

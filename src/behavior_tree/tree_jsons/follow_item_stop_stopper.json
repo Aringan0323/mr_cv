@@ -1,0 +1,12 @@
+{
+    "name":"Follow item, stop if stopper is visible",
+    "type":"Selector",
+    "children":[
+      {
+        "ref":"tree_jsons/stop_item.json"
+      },
+      {
+        "ref":"tree_jsons/follow_item.json"
+      }
+    ]
+  }

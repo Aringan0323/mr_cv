@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import rospy
 import numpy as np
 import json
 import graphviz
@@ -26,7 +27,7 @@ from ros_behavior_tree import ROSBehaviorTree
 
 
 
-master_dict = {
+master_node_dict = {
     
     "Conditional":Conditional, "Action":Action, "Update":Update, "Sequencer":Sequencer, "Selector":Selector, 
     "LinearStatic":LinearStatic, "LinearDynamic":LinearDynamic, "AngularStatic":AngularStatic, "AngularDynamic":AngularDynamic,
@@ -39,9 +40,78 @@ master_dict = {
     "BoolVar":BoolVar, "BoolVarNot":BoolVarNot
 }
 
+master_msg_dict = {
+
+    "Twist":Twist, "LaserScan":LaserScan, "CompressedImage":CompressedImage
+}
 
 
-class TreeGrapher:
+
+'''
+
+RULES FOR THE JSON FORMATTING:
+
+    NODES:
+
+        For each node in a tree, you must provide a "name" parameter and a "type" parameter.
+
+            The "name" is arbitrary, and is only used when displaying the graph in Graphviz.
+
+            The "type" parameter is used to specify which type of node you are instantiating. You must use one of the currently available
+            node types listed above in the master_node_dict.
+
+        When you are declaring a parent node, you will have a "children" parameter that will ask for a list of other nodes. You must provide
+        a list of newly specified nodes in the same format as you would provide information for a regular node. This will give your .json file
+        a nested structure.
+
+    REFERENCES:
+
+        You may pass in a reference to another json file node/tree structure as a child of another node. To do this, when declaring the node you must
+        pass in an argument "ref" and assign it to the path of the referenced file relative to the interpreter.
+
+    BLACKBOARD:
+
+        You will need to provide a blackboard with the necessary variables to keep track of inside of your .json file. You will put this blackboard in
+        as a parameter of the parent node and name it "blackboard".
+
+        There are two types of blackboard variables that can be used in the blackboard.
+
+            The "generic" variables which can be any kind of object or primitive data type supported by python. These types can have any name. They can be
+            specified to initially have a null value, or start with a value of a data type supported by json.
+
+            The ROS message variables will have the names of the topic which they are published to. Their name must start with a "/" or they will not be recognized
+            as a ROS message and a subscriber will not be instantiated for them. They must initially have a value which is a key for one of the ROS message types specified
+            above in the master_msg_dict.
+
+    EXAMPLE:
+
+        {
+            "name":"parent",
+            "type":"Selector",
+            "children":[
+                {
+                    "name":"child1",
+                    "type":"SomeConditionalNode",
+                    "some_param1":"foo"
+                },
+                {
+                    "name":"child2",
+                    "type":"SomeActionNode",
+                    "random_param1":"bar"
+                },
+                {
+                    "ref":"path/to/other/node.json"
+                }
+            ],
+            "blackboard":{
+                "/scan":"LaserScan",
+                "some_var":null
+            }
+        }
+
+'''
+class TreeBuilder:
+
 
     def __init__(self, path, comment=""):
 
@@ -52,14 +122,70 @@ class TreeGrapher:
 
         self.node_label = 0
 
+        self.blackboard = None
+
+
+    def build_tree(self):
+        '''
+        The recursive function attach_node() is called on the root of the tree, then the 
+        ROS behavior tree root and the blackboard are returned.
+        '''
+        root = self.attach_node(self.tree_dict) 
+
+        return root, self.blackboard  
+
+
+    def attach_node(self, node):
+
+        parameters = []
+
+        specials = ['name', 'type', 'blackboard']
+
+        for parameter in node: # Each parameter provided in the json is interpreted and used to initialize the node
+
+            if parameter == 'children': # Initializes all children recursively and appends them to a list which is then
+                                        # passed as another parameter in the node
+                children = []
+
+                for child in node['children']:
+                    if 'ref' in child: # Handles the case where the child is a reference to another json file
+                        with open(child['ref']) as f:
+                            child = json.load(f)
+                    children.append(self.attach_node(child))
+                
+                parameters.append(children)
+       
+            elif parameter not in specials:
+                
+                parameters.append(node[parameter])
+
+        if 'blackboard' in node: # If the blackboard is passed as a parameter it is converted into the compatible list format
+            
+            blackboard_list = []
+
+            for var in node['blackboard']:
+                
+                if var[0] == '/':
+                    
+                    blackboard_list.append([var, master_msg_dict[node['blackboard'][var]]])
+                
+                else:
+
+                    blackboard_list.append([var, node['blackboard'][var]])
+
+            self.blackboard = blackboard_list   
+
+        return master_node_dict[node['type']](*parameters)
+
+
+    def draw_tree(self):
+        '''
+        The recursive function link_nodes() is called on the root of the tree, then the 
+        the graph is drawn and a pdf is created using a Digraph object from GraphViz.
+        '''
+
         self.link_nodes(self.tree_dict)
 
-
-    def draw_graph(self):
-        
-        # self.dot.format = 'png'
-        # self.dot.render()
-        # print(self.dot)
         self.dot.view()
 
 
@@ -69,7 +195,7 @@ class TreeGrapher:
 
         string_node_label = str(self.node_label)
 
-        if node['type'] == 'Selector':
+        if node['type'] == 'Selector': # Changes the shape of the node depending on the type
             shape = "box"
         elif node['type'] == "Sequencer":
             shape = "cds"
@@ -78,9 +204,13 @@ class TreeGrapher:
 
         self.dot.node(string_node_label, label_string, shape=shape)
 
-        if 'children' in node:
+        if 'children' in node: # Recursively creates all of the Graphviz children nodes
 
             for child in node['children']:
+
+                if 'ref' in child:
+                    with open(child['ref']) as f:
+                        child = json.load(f)
 
                 self.node_label += 1
 
@@ -88,20 +218,26 @@ class TreeGrapher:
 
                 self.dot.edge(string_node_label, child_label)
 
-        if 'blackboard' in node:
+        if 'blackboard' in node: # Blackboard is visualized as being passed into the node it is initialized in
             blackboard_string = 'BLACKBOARD\n\n'
             for key in node['blackboard']:
                 blackboard_string += key + '  :  ' + str(node['blackboard'][key]) + '\n'
             self.dot.node('Blackboard', blackboard_string, shape='rectangle')
+            self.dot.edge('Blackboard', string_node_label)
 
         return string_node_label
 
 
 
-
-# class TreeBuilder
-
 if __name__ == '__main__':
 
-    tg = TreeGrapher('tree_jsons/test.json')
-    tg.draw_graph()
+    # rospy.init_node('person_follower')
+
+
+    tg = TreeBuilder('tree_jsons/follow_and_avoid.json')
+    tg.draw_tree()
+    # node, blackboard = tg.build_tree()
+
+
+    # tree = ROSBehaviorTree(node, blackboard)
+    # rospy.spin()
