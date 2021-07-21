@@ -55,7 +55,8 @@ RULES FOR THE JSON FORMATTING:
 
         For each node in a tree, you must provide a "name" parameter and a "type" parameter.
 
-            The "name" is arbitrary, and is only used when displaying the graph in Graphviz.
+            The "name" field is a string that will be displayed in the Graphviz tree along with the "type" for each node. Each node in a tree must have
+            a unique "name" in order for the tree to be displayed properly, but other than that the "name" of a node is arbitrary.
 
             The "type" parameter is used to specify which type of node you are instantiating. You must use one of the currently available
             node types listed above in the master_node_dict.
@@ -118,9 +119,7 @@ class TreeBuilder:
         with open(path) as f:
             self.tree_dict = json.load(f)
 
-        self.dot = graphviz.Digraph(comment='Behavior Tree')
-
-        self.node_label = 0
+        self.dot = graphviz.Digraph(format='pdf', comment='Behavior Tree')
 
         self.blackboard = None
 
@@ -160,20 +159,14 @@ class TreeBuilder:
                 parameters.append(node[parameter])
 
         if 'blackboard' in node: # If the blackboard is passed as a parameter it is converted into the compatible list format
-            
-            blackboard_list = []
 
             for var in node['blackboard']:
                 
                 if var[0] == '/':
-                    
-                    blackboard_list.append([var, master_msg_dict[node['blackboard'][var]]])
-                
-                else:
+                    print(var)
+                    node['blackboard'][var] = master_msg_dict[node['blackboard'][var]]
 
-                    blackboard_list.append([var, node['blackboard'][var]])
-
-            self.blackboard = blackboard_list   
+            self.blackboard = node['blackboard']   
 
         return master_node_dict[node['type']](*parameters)
 
@@ -193,7 +186,7 @@ class TreeBuilder:
 
         label_string = node['name'] + "\ntype: " + node['type']
 
-        string_node_label = str(self.node_label)
+        node_label = node['name']
 
         if node['type'] == 'Selector': # Changes the shape of the node depending on the type
             shape = "box"
@@ -202,7 +195,7 @@ class TreeBuilder:
         else:
             shape = "oval"
 
-        self.dot.node(string_node_label, label_string, shape=shape)
+        self.dot.node(node_label, label_string, shape=shape)
 
         if 'children' in node: # Recursively creates all of the Graphviz children nodes
 
@@ -212,20 +205,18 @@ class TreeBuilder:
                     with open(child['ref']) as f:
                         child = json.load(f)
 
-                self.node_label += 1
+                child_label = self.link_nodes(child, parent_label=node_label)
 
-                child_label = self.link_nodes(child, parent_label=string_node_label)
-
-                self.dot.edge(string_node_label, child_label)
+                self.dot.edge(node_label, child_label)
 
         if 'blackboard' in node: # Blackboard is visualized as being passed into the node it is initialized in
             blackboard_string = 'BLACKBOARD\n\n'
             for key in node['blackboard']:
                 blackboard_string += key + '  :  ' + str(node['blackboard'][key]) + '\n'
             self.dot.node('Blackboard', blackboard_string, shape='rectangle')
-            self.dot.edge('Blackboard', string_node_label)
+            self.dot.edge('Blackboard', node_label)
 
-        return string_node_label
+        return node_label
 
 
 
@@ -234,7 +225,7 @@ if __name__ == '__main__':
     # rospy.init_node('person_follower')
 
 
-    tg = TreeBuilder('tree_jsons/follow_and_avoid.json')
+    tg = TreeBuilder('tree_jsons/item_follower/follow_and_avoid.json')
     tg.draw_tree()
     # node, blackboard = tg.build_tree()
 

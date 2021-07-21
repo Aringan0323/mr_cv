@@ -1,0 +1,32 @@
+// Behavior Tree
+digraph {
+	"Follow the specified item and avoid collisions and stopper object" [label="Follow the specified item and avoid collisions and stopper object
+type: Sequencer" shape=cds]
+	"Is there an obstacle ahead?" [label="Is there an obstacle ahead?
+type: ClearAhead" shape=oval]
+	"Follow the specified item and avoid collisions and stopper object" -> "Is there an obstacle ahead?"
+	"Run box detector model" [label="Run box detector model
+type: FastDetector" shape=oval]
+	"Follow the specified item and avoid collisions and stopper object" -> "Run box detector model"
+	"Follow item, stop if stopper is visible" [label="Follow item, stop if stopper is visible
+type: Selector" shape=box]
+	"If stopper is visible, then stop" [label="If stopper is visible, then stop
+type: Sequencer" shape=cds]
+	"Is stopper visible?" [label="Is stopper visible?
+type: ItemBearingErr" shape=oval]
+	"If stopper is visible, then stop" -> "Is stopper visible?"
+	"Stop!" [label="Stop!
+type: Stop" shape=oval]
+	"If stopper is visible, then stop" -> "Stop!"
+	"Follow item, stop if stopper is visible" -> "If stopper is visible, then stop"
+	"Follow item if visible" [label="Follow item if visible
+type: Sequencer" shape=cds]
+	"Calculate bearing to item" [label="Calculate bearing to item
+type: ItemBearingErr" shape=oval]
+	"Follow item if visible" -> "Calculate bearing to item"
+	"Move forward in direction of bearing" [label="Move forward in direction of bearing
+type: LinearAngularDynamic" shape=oval]
+	"Follow item if visible" -> "Move forward in direction of bearing"
+	"Follow item, stop if stopper is visible" -> "Follow item if visible"
+	"Follow the specified item and avoid collisions and stopper object" -> "Follow item, stop if stopper is visible"
+}

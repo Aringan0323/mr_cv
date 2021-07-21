@@ -29,7 +29,7 @@ class ROSBehaviorTree:
             ]
 
     '''
-    def __init__(self, root, blackboard_vars, print_vars=[]):
+    def __init__(self, root, blackboard, print_vars=[]):
 
         self.print_vars = print_vars
         
@@ -37,21 +37,17 @@ class ROSBehaviorTree:
 
         self.root = root
 
-        self.blackboard = {}
+        self.blackboard = blackboard
 
         subscribers = []
         self.topic_vars = []
 
-        for var in blackboard_vars:
+        for var in blackboard:
 
-            if var[0][0] == "/":
+            if var[0] == "/":
 
-                subscribers.append(message_filters.Subscriber(var[0], var[1]))
-                self.topic_vars.append(var[0])
-
-            else:
-
-                self.blackboard[var[0]] = var[1]
+                subscribers.append(message_filters.Subscriber(var, blackboard[var]))
+                self.topic_vars.append(var)
 
         self.ts = message_filters.ApproximateTimeSynchronizer(subscribers, 10, 0.1, allow_headerless=True)
 
