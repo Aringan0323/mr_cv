@@ -1,5 +1,7 @@
 // Behavior Tree
 digraph {
+	"Item Follower" [label="Item Follower
+type: Selector" shape=box]
 	"Follow the specified item and avoid collisions and stopper object" [label="Follow the specified item and avoid collisions and stopper object
 type: Sequencer" shape=cds]
 	"Is there an obstacle ahead?" [label="Is there an obstacle ahead?
@@ -29,4 +31,48 @@ type: LinearAngularDynamic" shape=oval]
 	"Follow item if visible" -> "Move forward in direction of bearing"
 	"Follow item, stop if stopper is visible" -> "Follow item if visible"
 	"Follow the specified item and avoid collisions and stopper object" -> "Follow item, stop if stopper is visible"
+	"Item Follower" -> "Follow the specified item and avoid collisions and stopper object"
+	"Follow the wall" [label="Follow the wall
+type: Sequencer" shape=cds]
+	"Calculate values necessary for PID calculations" [label="Calculate values necessary for PID calculations
+type: Multitasker" shape=oval]
+	"Calculate the angle to the nearest wall" [label="Calculate the angle to the nearest wall
+type: CalcNearestWallAngle" shape=oval]
+	"Calculate values necessary for PID calculations" -> "Calculate the angle to the nearest wall"
+	"Calculate the nearest distance" [label="Calculate the nearest distance
+type: CalcNearestDist" shape=oval]
+	"Calculate values necessary for PID calculations" -> "Calculate the nearest distance"
+	"Calculate the average distance in front" [label="Calculate the average distance in front
+type: CalcAvgFrontDist" shape=oval]
+	"Calculate values necessary for PID calculations" -> "Calculate the average distance in front"
+	"Follow the wall" -> "Calculate values necessary for PID calculations"
+	"PID calculations" [label="PID calculations
+type: Multitasker" shape=oval]
+	"Calculate angular velocity necessary to be parallel to the wall" [label="Calculate angular velocity necessary to be parallel to the wall
+type: AngularPID" shape=oval]
+	"PID calculations" -> "Calculate angular velocity necessary to be parallel to the wall"
+	"Calculate linear velocity necessary to avoid collision" [label="Calculate linear velocity necessary to avoid collision
+type: LinearPID" shape=oval]
+	"PID calculations" -> "Calculate linear velocity necessary to avoid collision"
+	"Follow the wall" -> "PID calculations"
+	"Move according to PID calculations" [label="Move according to PID calculations
+type: LinearAngularDynamic" shape=oval]
+	"Follow the wall" -> "Move according to PID calculations"
+	"Item Follower" -> "Follow the wall"
+	Blackboard [label="BLACKBOARD
+
+/scan  :  LaserScan
+/raspicam_node/image/compressed  :  CompressedImage
+detector_label_dict  :  None
+detection  :  None
+static_lin  :  0.1
+item_lin  :  None
+nearest_wall_angle  :  None
+nearest_dist  :  None
+avg_front_dist  :  None
+angular_pid  :  None
+linear_pid  :  None
+__  :  None
+" shape=rectangle]
+	Blackboard -> "Item Follower"
 }

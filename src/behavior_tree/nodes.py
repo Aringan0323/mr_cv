@@ -4,6 +4,7 @@ import rospy
 
 from abc import ABC, abstractmethod
 import random
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Node(ABC):
@@ -87,6 +88,30 @@ class Sequencer(ParentNode):
             i += 1
 
         return status
+
+
+class Multitasker(ParentNode):
+
+    def tick(self, blackboard):
+
+        statuses = []
+
+        with ThreadPoolExecutor() as executor:
+
+            threads = [executor.submit(child.tick, blackboard) for child in self.children]
+            statuses = [thread.result() for thread in threads]
+
+        if "failure" in statuses:
+
+            return "failure"
+            
+        elif "running" in statuses:
+            
+            return "running"
+
+        else:
+
+            return "success"
 
 
 # class Repeater(ParentNode):

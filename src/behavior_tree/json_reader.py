@@ -10,7 +10,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from sensor_msgs.msg import CompressedImage
 
-from nodes import Conditional, Action, Update, Sequencer, Selector
+from nodes import Conditional, Action, Update, Sequencer, Selector, Multitasker
 
 from action_nodes.basic_movement import LinearStatic, LinearDynamic, AngularStatic, AngularDynamic, LinearAngularStatic, LinearAngularDynamic, Stop
 
@@ -29,7 +29,7 @@ from ros_behavior_tree import ROSBehaviorTree
 
 master_node_dict = {
     
-    "Conditional":Conditional, "Action":Action, "Update":Update, "Sequencer":Sequencer, "Selector":Selector, 
+    "Conditional":Conditional, "Action":Action, "Update":Update, "Sequencer":Sequencer, "Selector":Selector, "Multitasker":Multitasker,
     "LinearStatic":LinearStatic, "LinearDynamic":LinearDynamic, "AngularStatic":AngularStatic, "AngularDynamic":AngularDynamic,
     "LinearAngularStatic":LinearAngularStatic, "LinearAngularDynamic":LinearAngularDynamic, "Stop": Stop,
     "FlipBoolVar":FlipBoolVar, "IncrementVar":IncrementVar, "OffsetVar":OffsetVar,
@@ -222,13 +222,13 @@ class TreeBuilder:
 
 if __name__ == '__main__':
 
-    # rospy.init_node('person_follower')
+    rospy.init_node('person_follower')
 
 
-    tg = TreeBuilder('tree_jsons/item_follower/follow_and_avoid.json')
+    tg = TreeBuilder('tree_jsons/item_follower/item_follower.json')
     tg.draw_tree()
-    # node, blackboard = tg.build_tree()
+    node, blackboard = tg.build_tree()
 
 
-    # tree = ROSBehaviorTree(node, blackboard)
-    # rospy.spin()
+    tree = ROSBehaviorTree(node, blackboard)
+    rospy.spin()

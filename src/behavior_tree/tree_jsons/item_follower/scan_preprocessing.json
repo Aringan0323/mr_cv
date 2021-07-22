@@ -1,0 +1,25 @@
+{
+    "name":"Calculate values necessary for PID calculations",
+    "type":"Multitasker",
+    "children":[
+        {
+            "name":"Calculate the angle to the nearest wall",
+            "type":"CalcNearestWallAngle",
+            "scan_var_name":"/scan",
+            "angle_var_name":"nearest_wall_angle"
+          },
+          {
+            "name":"Calculate the nearest distance",
+            "type":"CalcNearestDist",
+            "scan_var_name":"/scan",
+            "dist_var_name":"nearest_dist"
+          },
+          {
+            "name":"Calculate the average distance in front",
+            "type":"CalcAvgFrontDist",
+            "scan_var_name":"/scan",
+            "dist_var_name":"avg_front_dist",
+            "fov":30
+          }
+    ]
+}
