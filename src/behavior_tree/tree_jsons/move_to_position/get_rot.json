@@ -1,0 +1,10 @@
+{
+    "name":"get_rot",
+    "type":"GetRotation",
+    "odom_var_name":"/odom",
+    "rotation_var_name":"rotation",
+    "degrees":false,
+    "blackboard":{
+        "rotation":null
+    }
+}

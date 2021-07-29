@@ -1,5 +1,5 @@
 {
-  "name":"Follow the specified item and avoid collisions and stopper object",
+  "name":"follow_and_avoid",
   "type":"Sequencer",
   "children":[
     {
@@ -18,5 +18,10 @@
     {
       "ref":"tree_jsons/item_follower/follow_item_stop_stopper.json"
     }
-  ]
+  ],
+  "blackboard":{
+    "detector_label_dict":null,
+    "/raspicam_node/image/compressed":"CompressedImage",
+    "detection":null
+  }
 }

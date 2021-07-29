@@ -1,52 +1,5 @@
 #!/usr/bin/env python3
 
-import rospy
-import numpy as np
-import json
-import graphviz
-import sys
-
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import LaserScan
-from sensor_msgs.msg import CompressedImage
-
-from nodes import Conditional, Action, Update, Sequencer, Selector, Multitasker
-
-from action_nodes.basic_movement import LinearStatic, LinearDynamic, AngularStatic, AngularDynamic, LinearAngularStatic, LinearAngularDynamic, Stop
-
-from update_nodes.basic_updates import FlipBoolVar, IncrementVar, OffsetVar
-from update_nodes.movement_control_updates import LinearPID, AngularPID
-from update_nodes.cv_updates import FastDetector, ItemBearingErr
-from update_nodes.scan_updates import CalcNearestWallAngle, CalcNearestDist, CalcAvgFrontDist
-
-from conditional_nodes.scan_conditionals import WallAhead, ClearAhead
-from conditional_nodes.basic_conditionals import BoolVar, BoolVarNot
-
-from ros_behavior_tree import ROSBehaviorTree
-
-
-
-
-master_node_dict = {
-    
-    "Conditional":Conditional, "Action":Action, "Update":Update, "Sequencer":Sequencer, "Selector":Selector, "Multitasker":Multitasker,
-    "LinearStatic":LinearStatic, "LinearDynamic":LinearDynamic, "AngularStatic":AngularStatic, "AngularDynamic":AngularDynamic,
-    "LinearAngularStatic":LinearAngularStatic, "LinearAngularDynamic":LinearAngularDynamic, "Stop": Stop,
-    "FlipBoolVar":FlipBoolVar, "IncrementVar":IncrementVar, "OffsetVar":OffsetVar,
-    "LinearPID":LinearPID, "AngularPID":AngularPID,
-    "FastDetector":FastDetector, "ItemBearingErr":ItemBearingErr,
-    "CalcNearestWallAngle":CalcNearestWallAngle, "CalcNearestDist":CalcNearestDist, "CalcAvgFrontDist":CalcAvgFrontDist,
-    "WallAhead":WallAhead, "ClearAhead":ClearAhead,
-    "BoolVar":BoolVar, "BoolVarNot":BoolVarNot
-}
-
-master_msg_dict = {
-
-    "Twist":Twist, "LaserScan":LaserScan, "CompressedImage":CompressedImage
-}
-
-
-
 '''
 
 RULES FOR THE JSON FORMATTING:
@@ -111,6 +64,62 @@ RULES FOR THE JSON FORMATTING:
         }
 
 '''
+
+import rospy
+import numpy as np
+import json
+import graphviz
+import sys
+
+from geometry_msgs.msg import Twist, Pose
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import LaserScan, CompressedImage
+from sensor_msgs.msg import CompressedImage
+
+from nodes import *
+
+from action_nodes.basic_movement import *
+
+from update_nodes.basic_updates import *
+from update_nodes.movement_control_updates import *
+from update_nodes.odom_updates import *
+from update_nodes.cv_updates import *
+from update_nodes.scan_updates import *
+
+from conditional_nodes.scan_conditionals import *
+from conditional_nodes.basic_conditionals import *
+
+from ros_behavior_tree import ROSBehaviorTree
+
+
+# master_node_dict = {
+    
+#     "Conditional":Conditional, "Action":Action, "Update":Update, "Sequencer":Sequencer, "Selector":Selector, "Multitasker":Multitasker,
+#     "LinearStatic":LinearStatic, "LinearDynamic":LinearDynamic, "AngularStatic":AngularStatic, "AngularDynamic":AngularDynamic,
+#     "LinearAngularStatic":LinearAngularStatic, "LinearAngularDynamic":LinearAngularDynamic, "Stop": Stop,
+#     "FlipBoolVar":FlipBoolVar, "IncrementVar":IncrementVar, "OffsetVar":OffsetVar,
+#     "LinearPID":LinearPID, "AngularPID":AngularPID,
+#     "GetPosition":GetPosition, "GetRotation":GetRotation,
+#     "FastDetector":FastDetector, "ItemBearingErr":ItemBearingErr,
+#     "CalcNearestWallAngle":CalcNearestWallAngle, "CalcNearestDist":CalcNearestDist, "CalcAvgFrontDist":CalcAvgFrontDist,
+#     "WallAhead":WallAhead, "ClearAhead":ClearAhead,
+#     "BoolVar":BoolVar, "BoolVarNot":BoolVarNot
+# }
+
+# master_msg_dict = {
+
+#     "Twist":Twist, "LaserScan":LaserScan, "CompressedImage":CompressedImage, "Odometry":Odometry, "Pose":Pose
+# }
+
+# no_no_dict = {
+#     '__annotations__':None, '__builtins__':None, '__cached__':None, '__doc__':None, '__file__':None,
+#     '__loader__':None,'__name__':None,'__package__':None,'__spec__':None,'graphviz':None, 'json':None,'np':None,
+#     'rospy':None, 'sys':None, 'ROSBehaviorTree':None, 'TreeBuilder':None
+# }
+
+
+
+
 class TreeBuilder:
 
 
@@ -121,7 +130,8 @@ class TreeBuilder:
 
         self.dot = graphviz.Digraph(format='pdf', comment='Behavior Tree')
 
-        self.blackboard = None
+        self.blackboard = {}
+
 
 
     def build_tree(self):
@@ -129,7 +139,9 @@ class TreeBuilder:
         The recursive function attach_node() is called on the root of the tree, then the 
         ROS behavior tree root and the blackboard are returned.
         '''
-        root = self.attach_node(self.tree_dict) 
+        root = self.attach_node(self.tree_dict)
+
+        print(dir)
 
         return root, self.blackboard  
 
@@ -158,17 +170,16 @@ class TreeBuilder:
                 
                 parameters.append(node[parameter])
 
-        if 'blackboard' in node: # If the blackboard is passed as a parameter it is converted into the compatible list format
+        if 'blackboard' in node: # If the blackboard is passed as a parameter its contents are added to the tree blackboard
 
             for var in node['blackboard']:
                 
                 if var[0] == '/':
-                    print(var)
-                    node['blackboard'][var] = master_msg_dict[node['blackboard'][var]]
+                    self.blackboard[var] = eval(node['blackboard'][var])
+                else:
+                    self.blackboard[var] = node['blackboard'][var] 
 
-            self.blackboard = node['blackboard']   
-
-        return master_node_dict[node['type']](*parameters)
+        return eval(node['type'])(*parameters)
 
 
     def draw_tree(self):
@@ -177,12 +188,29 @@ class TreeBuilder:
         the graph is drawn and a pdf is created using a Digraph object from GraphViz.
         '''
 
-        self.link_nodes(self.tree_dict)
+        root_name, blackboard = self.link_nodes(self.tree_dict)
+
+        self.link_blackboard(root_name, blackboard)
+
+        print(dir())
 
         self.dot.view()
 
+    
+    def link_blackboard(self, root_name, blackboard):
+        '''
+        Links the blackboard defined by any of the nodes in the tree and attaches it
+        to the passed node in the graph and displays its contents.
+        '''
+        
+        blackboard_string = 'BLACKBOARD\n\n'
+        for key in blackboard:
+            blackboard_string += key + '  :  ' + str(blackboard[key]) + '\n'
+        self.dot.node('Blackboard', blackboard_string, shape='rectangle')
+        self.dot.edge('Blackboard', root_name)
 
-    def link_nodes(self, node, parent_label=None):
+
+    def link_nodes(self, node, parent_label=None, blackboard={}):
 
         label_string = node['name'] + "\ntype: " + node['type']
 
@@ -197,6 +225,10 @@ class TreeBuilder:
 
         self.dot.node(node_label, label_string, shape=shape)
 
+        if 'blackboard' in node: # Blackboard is visualized as being passed into the node it is initialized in
+            for var in node['blackboard']:
+                blackboard[var] = node['blackboard'][var]
+
         if 'children' in node: # Recursively creates all of the Graphviz children nodes
 
             for child in node['children']:
@@ -205,30 +237,26 @@ class TreeBuilder:
                     with open(child['ref']) as f:
                         child = json.load(f)
 
-                child_label = self.link_nodes(child, parent_label=node_label)
+                child_label, blackboard = self.link_nodes(child, parent_label=node_label, blackboard=blackboard)
 
                 self.dot.edge(node_label, child_label)
 
-        if 'blackboard' in node: # Blackboard is visualized as being passed into the node it is initialized in
-            blackboard_string = 'BLACKBOARD\n\n'
-            for key in node['blackboard']:
-                blackboard_string += key + '  :  ' + str(node['blackboard'][key]) + '\n'
-            self.dot.node('Blackboard', blackboard_string, shape='rectangle')
-            self.dot.edge('Blackboard', node_label)
+        
 
-        return node_label
+        return node_label, blackboard
 
 
 
 if __name__ == '__main__':
 
+
     rospy.init_node('person_follower')
 
 
-    tg = TreeBuilder('tree_jsons/item_follower/item_follower.json')
+    tg = TreeBuilder('tree_jsons/move_to_position/move_to_position.json')
     tg.draw_tree()
     node, blackboard = tg.build_tree()
 
 
-    tree = ROSBehaviorTree(node, blackboard)
+    tree = ROSBehaviorTree(node, blackboard, print_vars=["position", "rotation", "goal_rotation", "linear_pid", "angular_pid"])
     rospy.spin()

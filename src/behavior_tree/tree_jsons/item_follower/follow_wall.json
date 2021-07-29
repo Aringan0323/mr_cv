@@ -1,5 +1,5 @@
 {
-    "name":"Follow the wall",
+    "name":"follow_wall",
     "type":"Sequencer",
     "children":[
       {
@@ -14,5 +14,9 @@
         "linear_var_name":"linear_pid",
         "angular_var_name":"angular_pid"
       }
-    ]
+    ],
+    "blackboard":{
+      "linear_pid":null,
+      "angular_pid":null
+    }
   }

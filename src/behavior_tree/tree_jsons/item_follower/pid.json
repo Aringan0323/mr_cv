@@ -1,5 +1,5 @@
 {
-    "name":"PID calculations",
+    "name":"pid",
     "type":"Multitasker",
     "children":[
         {

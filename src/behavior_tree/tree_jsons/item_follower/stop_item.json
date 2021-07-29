@@ -1,5 +1,5 @@
 {
-    "name":"If stopper is visible, then stop",
+    "name":"stop_item",
     "type":"Sequencer",
     "children":[
       {
@@ -15,5 +15,8 @@
         "name":"Stop!",
         "type":"Stop"
       }
-    ]
+    ],
+    "blackboard":{
+      "_":null
+    }
   }

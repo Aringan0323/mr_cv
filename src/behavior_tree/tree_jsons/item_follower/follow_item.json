@@ -1,5 +1,5 @@
 {
-    "name":"Follow item if visible",
+    "name":"follow_item",
     "type":"Sequencer",
     "children":[
       {
@@ -17,5 +17,9 @@
         "linear_var_name":"static_lin",
         "angular_var_name":"item_err"
       }
-    ]
+    ],
+    "blackboard":{
+      "item_err":null,
+      "static_lin":0.1
+    }
   }

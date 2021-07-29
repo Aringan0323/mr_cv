@@ -1,0 +1,17 @@
+{
+    "name":"move_to_position",
+    "type":"Sequencer",
+    "children":[
+        {
+            "ref":"tree_jsons/move_to_position/parent.json"
+        },
+        {
+            "name":"move",
+            "type":"LinearAngularDynamic",
+            "linear":"linear_pid",
+            "angular":"angular_pid"
+        }
+    ]
+}
+
+

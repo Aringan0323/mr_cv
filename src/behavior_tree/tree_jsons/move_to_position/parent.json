@@ -1,0 +1,21 @@
+{
+    "name":"parent",
+    "type":"Multitasker",
+    "children":[
+        {
+            "ref":"tree_jsons/move_to_position/get_pos.json"
+        },
+        {
+            "ref":"tree_jsons/move_to_position/get_rot.json"
+        },
+        {
+            "ref":"tree_jsons/move_to_position/angle_to_pos.json"
+        },
+        {
+            "ref":"tree_jsons/move_to_position/pid.json"
+        }
+    ],
+    "blackboard":{
+        "/odom":"Odometry"
+    }
+}

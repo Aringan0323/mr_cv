@@ -124,5 +124,16 @@ class CalcAvgFrontDist(Update):
             return "failure"
 
 
+# class DistAtAngle(Update):
+
+#     def __init__(self, angle_var_name, scan_var_name):
+
+#         self.angle_var_name = angle_var_name
+#         self.scan_var_name = scan_var_name
+
+
+#     def tick()
+
+
 
     

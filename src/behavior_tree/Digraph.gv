@@ -1,78 +1,44 @@
 // Behavior Tree
 digraph {
-	"Item Follower" [label="Item Follower
-type: Selector" shape=box]
-	"Follow the specified item and avoid collisions and stopper object" [label="Follow the specified item and avoid collisions and stopper object
+	move_to_position [label="move_to_position
 type: Sequencer" shape=cds]
-	"Is there an obstacle ahead?" [label="Is there an obstacle ahead?
-type: ClearAhead" shape=oval]
-	"Follow the specified item and avoid collisions and stopper object" -> "Is there an obstacle ahead?"
-	"Run box detector model" [label="Run box detector model
-type: FastDetector" shape=oval]
-	"Follow the specified item and avoid collisions and stopper object" -> "Run box detector model"
-	"Follow item, stop if stopper is visible" [label="Follow item, stop if stopper is visible
-type: Selector" shape=box]
-	"If stopper is visible, then stop" [label="If stopper is visible, then stop
-type: Sequencer" shape=cds]
-	"Is stopper visible?" [label="Is stopper visible?
-type: ItemBearingErr" shape=oval]
-	"If stopper is visible, then stop" -> "Is stopper visible?"
-	"Stop!" [label="Stop!
-type: Stop" shape=oval]
-	"If stopper is visible, then stop" -> "Stop!"
-	"Follow item, stop if stopper is visible" -> "If stopper is visible, then stop"
-	"Follow item if visible" [label="Follow item if visible
-type: Sequencer" shape=cds]
-	"Calculate bearing to item" [label="Calculate bearing to item
-type: ItemBearingErr" shape=oval]
-	"Follow item if visible" -> "Calculate bearing to item"
-	"Move forward in direction of bearing" [label="Move forward in direction of bearing
-type: LinearAngularDynamic" shape=oval]
-	"Follow item if visible" -> "Move forward in direction of bearing"
-	"Follow item, stop if stopper is visible" -> "Follow item if visible"
-	"Follow the specified item and avoid collisions and stopper object" -> "Follow item, stop if stopper is visible"
-	"Item Follower" -> "Follow the specified item and avoid collisions and stopper object"
-	"Follow the wall" [label="Follow the wall
-type: Sequencer" shape=cds]
-	"Calculate values necessary for PID calculations" [label="Calculate values necessary for PID calculations
+	parent [label="parent
 type: Multitasker" shape=oval]
-	"Calculate the angle to the nearest wall" [label="Calculate the angle to the nearest wall
-type: CalcNearestWallAngle" shape=oval]
-	"Calculate values necessary for PID calculations" -> "Calculate the angle to the nearest wall"
-	"Calculate the nearest distance" [label="Calculate the nearest distance
-type: CalcNearestDist" shape=oval]
-	"Calculate values necessary for PID calculations" -> "Calculate the nearest distance"
-	"Calculate the average distance in front" [label="Calculate the average distance in front
-type: CalcAvgFrontDist" shape=oval]
-	"Calculate values necessary for PID calculations" -> "Calculate the average distance in front"
-	"Follow the wall" -> "Calculate values necessary for PID calculations"
-	"PID calculations" [label="PID calculations
+	print_pos [label="print_pos
+type: GetPosition" shape=oval]
+	parent -> print_pos
+	get_rot [label="get_rot
+type: GetRotation" shape=oval]
+	parent -> get_rot
+	angle_to_pos [label="angle_to_pos
+type: AngleToPosition" shape=oval]
+	parent -> angle_to_pos
+	pid [label="pid
 type: Multitasker" shape=oval]
+	calculate_distance [label="calculate_distance
+type: DistToPosition" shape=oval]
+	pid -> calculate_distance
 	"Calculate angular velocity necessary to be parallel to the wall" [label="Calculate angular velocity necessary to be parallel to the wall
 type: AngularPID" shape=oval]
-	"PID calculations" -> "Calculate angular velocity necessary to be parallel to the wall"
+	pid -> "Calculate angular velocity necessary to be parallel to the wall"
 	"Calculate linear velocity necessary to avoid collision" [label="Calculate linear velocity necessary to avoid collision
 type: LinearPID" shape=oval]
-	"PID calculations" -> "Calculate linear velocity necessary to avoid collision"
-	"Follow the wall" -> "PID calculations"
-	"Move according to PID calculations" [label="Move according to PID calculations
+	pid -> "Calculate linear velocity necessary to avoid collision"
+	parent -> pid
+	move_to_position -> parent
+	move [label="move
 type: LinearAngularDynamic" shape=oval]
-	"Follow the wall" -> "Move according to PID calculations"
-	"Item Follower" -> "Follow the wall"
+	move_to_position -> move
 	Blackboard [label="BLACKBOARD
 
-/scan  :  LaserScan
-/raspicam_node/image/compressed  :  CompressedImage
-detector_label_dict  :  None
-detection  :  None
-static_lin  :  0.1
-item_lin  :  None
-nearest_wall_angle  :  None
-nearest_dist  :  None
-avg_front_dist  :  None
+/odom  :  Odometry
+position  :  None
+rotation  :  None
+goal_pos  :  [1, 0]
+goal_rotation  :  None
 angular_pid  :  None
 linear_pid  :  None
-__  :  None
+dist  :  None
 " shape=rectangle]
-	Blackboard -> "Item Follower"
+	Blackboard -> move_to_position
 }

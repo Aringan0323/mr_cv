@@ -1,5 +1,5 @@
 {
-    "name":"Calculate values necessary for PID calculations",
+    "name":"scan_preprocessing",
     "type":"Multitasker",
     "children":[
         {
@@ -21,5 +21,11 @@
             "dist_var_name":"avg_front_dist",
             "fov":30
           }
-    ]
+    ],
+    "blackboard":{
+      "/scan":"LaserScan",
+      "avg_front_dist":null,
+      "nearest_dist":null,
+      "nearest_wall_angle":null
+    }
 }

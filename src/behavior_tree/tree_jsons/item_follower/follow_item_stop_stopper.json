@@ -1,5 +1,5 @@
 {
-    "name":"Follow item, stop if stopper is visible",
+    "name":"follow_item_stop_stopper",
     "type":"Selector",
     "children":[
       {

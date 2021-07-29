@@ -82,6 +82,28 @@ class ClearAhead(Conditional):
         return not wall_ahead
 
 
+class WallAtAngleDynamic(Conditional):
+
+    def __init__(self, angle_var_name, scan_var_name, dist, fov):
+
+        self.angle_var_name = angle_var_name
+        self.scan_var_name = scan_var_name
+        self.dist = dist
+        self.fov = fov
+
+
+    def condition(self, blackboard):
+
+        ranges = blackboard[self.scan_var_name].ranges
+
+        angle =  blackboard[self.angle_var_name]
+
+        ranges[ranges == 0] = 999
+
+        ratio = int(ranges.size/360)
+
+        return ranges[ratio*angle] >= self.dist
+
 
 
 
